@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-// import 'dart:math'; // ĐÃ XÓA: Unused import
 
 // Firebase imports
 import 'package:firebase_core/firebase_core.dart';
@@ -12,7 +11,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 // Import cho iOS WebView (tùy chọn)
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
-// Used to detect platform at runtime so we can set the platform
 
 import 'custom_dialog.dart';
 import 'sudoku_logic.dart';
@@ -20,8 +18,6 @@ import 'sudoku_logic.dart';
 // Hàm main được cập nhật để khởi tạo Firebase
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Do not manually set `WebViewPlatform.instance` here — let the
-  // plugin register its platform implementation automatically.
   await Firebase.initializeApp();
   runApp(const MyApp());
 }
@@ -37,7 +33,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.grey.shade900, // Màu hạt chính là xám đậm
           brightness: Brightness.light,
-        ).copyWith(surface: Colors.grey.shade100), // ĐÃ SỬA: 'background' to 'surface'
+        ).copyWith(surface: Colors.grey.shade100),
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.grey.shade100, // Nền trắng xám
         appBarTheme: AppBarTheme(
@@ -105,7 +101,6 @@ class GameScore {
   final int score;
   GameScore({required this.playerName, required this.score});
 
-  // Factory constructor để tạo GameScore từ một Firestore document
   factory GameScore.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
     return GameScore(
@@ -123,6 +118,66 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   final TextEditingController _nameController = TextEditingController();
+  bool _isLoading = true; // Bắt đầu ở trạng thái loading
+
+  @override
+  void initState() {
+    super.initState();
+    _checkWebViewStatus();
+  }
+
+  Future<void> _checkWebViewStatus() async {
+    try {
+      final settingsDoc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('settings_admin')
+          .get();
+
+      if (settingsDoc.exists && settingsDoc.data()?['webView'] == 'on') {
+        final webDataDoc = await FirebaseFirestore.instance
+            .collection('webdata')
+            .doc('webdata')
+            .get();
+
+        if (webDataDoc.exists) {
+          final data = webDataDoc.data() as Map<String, dynamic>;
+          final url = data['defaultWebViewUrl'];
+          final title = data['gameTitle'];
+          final keywords = data['keywords'];
+          final logoAsset = data['logo'];
+
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => WebViewScreen(
+                  title: title ?? 'Web Game',
+                  url: url ?? 'https://google.com',
+                  logoAsset: logoAsset,
+                  keywords: keywords,
+                ),
+              ),
+            );
+          }
+        } else {
+          // Nếu không tìm thấy data webview, vẫn ở lại màn hình chính
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Nếu webview off hoặc không tồn tại, ở lại màn hình chính
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Bất kỳ lỗi nào cũng sẽ ở lại màn hình chính
+      debugPrint("Error checking webview status: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -132,6 +187,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sudoku Game'),
@@ -146,21 +209,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min, // ĐÃ SỬA LỖI TẠI ĐÂY
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
-                    Icons.grid_on_sharp,
-                    size: 80,
-                    color: Colors.grey.shade800, // Icon màu xám đậm
-                  ),
+                  Icon(Icons.grid_on_sharp, size: 80, color: Colors.grey.shade800),
                   const SizedBox(height: 24),
                   const Text(
                     'Chào mừng đến với Sudoku!',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87 // Chữ đen
-                    ),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
@@ -179,13 +234,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 60),
+                      backgroundColor: Colors.grey.shade800,
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: () {
                       if (_nameController.text.isNotEmpty) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SudokuScreen(
-                                playerName: _nameController.text),
+                            builder: (context) => SudokuScreen(playerName: _nameController.text),
                           ),
                         );
                       } else {
@@ -199,11 +258,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         );
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 60),
-                      backgroundColor: Colors.grey.shade800, // Nút Start màu đen
-                      foregroundColor: Colors.white,
-                    ),
                     child: const Text('Bắt đầu chơi'),
                   ),
                   const SizedBox(height: 16),
@@ -211,36 +265,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const RankingScreen(), // Không cần truyền data nữa
-                        ),
+                        MaterialPageRoute(builder: (context) => const RankingScreen()),
                       );
                     },
                     child: const Text('Xem Bảng Xếp Hạng'),
-                  ),
-                  const SizedBox(height: 16), // Khoảng cách giữa nút cũ và nút mới
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const WebViewScreen(
-                            title: 'Cổng Game Bài',
-                            url: 'https://go88.vin/', // URL demo
-                            // logoAsset: 'assets/go88_logo.png', // Tạm thời là placeholder
-                            keywords: 'go88, sunwin, kubet, game bài',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.videogame_asset),
-                    label: const Text('Chơi Game Bài'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 60),
-                      backgroundColor: Colors.blueGrey.shade700,
-                      foregroundColor: Colors.white,
-                    ),
                   ),
                 ],
               ),
@@ -251,6 +279,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 }
+
 
 class SudokuScreen extends StatefulWidget {
   final String playerName;
@@ -292,8 +321,7 @@ class _SudokuScreenState extends State<SudokuScreen> {
     final puzzle = generatedPuzzle.puzzle;
 
     _board = puzzle.map((row) => List<int>.from(row)).toList();
-    _initialBoard =
-        puzzle.map((row) => row.map((cell) => cell != 0).toList()).toList();
+    _initialBoard = puzzle.map((row) => row.map((cell) => cell != 0).toList()).toList();
     _errorBoard = List.generate(9, (_) => List.generate(9, (_) => false));
     _correctBoard = List.generate(9, (_) => List.generate(9, (_) => false));
     _secondsElapsed = 0;
@@ -449,13 +477,6 @@ class _SudokuScreenState extends State<SudokuScreen> {
     }
   }
 
-  void _solveBoard() {
-    setState(() {
-      _board = _solution.map((row) => List<int>.from(row)).toList();
-      _updateErrors();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -491,8 +512,8 @@ class _SudokuScreenState extends State<SudokuScreen> {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 9,
-                          mainAxisSpacing: 0, // Đảm bảo không có khoảng cách giữa các ô
-                          crossAxisSpacing: 0, // Đảm bảo không có khoảng cách giữa các ô
+                          mainAxisSpacing: 0,
+                          crossAxisSpacing: 0,
                         ),
                         itemCount: 81,
                         itemBuilder: (context, index) {
@@ -529,15 +550,21 @@ class _SudokuScreenState extends State<SudokuScreen> {
                                 color: cellColor,
                                 border: Border(
                                   top: BorderSide(
-                                    width: row == 0 || row % 3 == 0 ? thickBorderWidth : thinBorderWidth,
+                                    width: row % 3 == 0 ? thickBorderWidth : thinBorderWidth,
                                     color: defaultBorderColor,
                                   ),
                                   left: BorderSide(
-                                    width: col == 0 || col % 3 == 0 ? thickBorderWidth : thinBorderWidth,
+                                    width: col % 3 == 0 ? thickBorderWidth : thinBorderWidth,
                                     color: defaultBorderColor,
                                   ),
-                                  right: col == 8 ? BorderSide(width: thickBorderWidth, color: defaultBorderColor) : BorderSide(width: (col % 3 == 2 ? thickBorderWidth : thinBorderWidth), color: defaultBorderColor),
-                                  bottom: row == 8 ? BorderSide(width: thickBorderWidth, color: defaultBorderColor) : BorderSide(width: (row % 3 == 2 ? thickBorderWidth : thinBorderWidth), color: defaultBorderColor),
+                                  right: BorderSide(
+                                    width: col == 8 ? thickBorderWidth : 0,
+                                    color: defaultBorderColor,
+                                  ),
+                                  bottom: BorderSide(
+                                    width: row == 8 ? thickBorderWidth : 0,
+                                    color: defaultBorderColor,
+                                  ),
                                 ),
                               ),
                               child: Center(
@@ -575,14 +602,12 @@ class SudokuControls extends StatelessWidget {
   final ValueChanged<int> onNumberTapped;
   final VoidCallback onClearTapped;
   final VoidCallback onValidateTapped;
-  // final VoidCallback onSolveTapped; // ĐÃ XÓA: onSolveTapped không còn được truyền vào
 
   const SudokuControls({
     super.key,
     required this.onNumberTapped,
     required this.onClearTapped,
     required this.onValidateTapped,
-    // ĐÃ XÓA: required this.onSolveTapped,
   });
 
   Widget _buildNumberButton(int number) {
@@ -763,37 +788,17 @@ class WebViewScreen extends StatefulWidget {
 }
 
 class _WebViewScreenState extends State<WebViewScreen> {
-  WebViewController? _controller;
+  late final WebViewController _controller;
 
   @override
   void initState() {
     super.initState();
-    _createControllerWhenReady();
-  }
 
-  Future<void> _createControllerWhenReady() async {
-    // Wait for the plugin to register the platform implementation.
-    // Retry a few times before giving up to avoid the assertion
-    // 'WebViewPlatform.instance != null' when creating the controller.
-    const int maxAttempts = 10;
-    int attempts = 0;
-    while (WebViewPlatform.instance == null && attempts < maxAttempts) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      attempts++;
-    }
-
-    if (WebViewPlatform.instance == null) {
-      // Plugin did not register; log and leave controller null.
-      debugPrint('webview_flutter platform implementation not available');
-      return;
-    }
-
-    // #docregion platform_features
     late final PlatformWebViewControllerCreationParams params;
     if (WebViewPlatform.instance is WebKitWebViewPlatform) {
       params = WebKitWebViewControllerCreationParams(
         allowsInlineMediaPlayback: true,
-        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{}, // ĐÃ SỬA LỖI TẠI ĐÂY
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
       );
     } else {
       params = const PlatformWebViewControllerCreationParams();
@@ -801,7 +806,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
     final WebViewController controller =
         WebViewController.fromPlatformCreationParams(params);
-    // #enddocregion platform_features
 
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -839,26 +843,13 @@ class _WebViewScreenState extends State<WebViewScreen> {
       )
       ..loadRequest(Uri.parse(widget.url));
 
-    // #docregion platform_features
-    if (controller.platform is AndroidWebViewController) {
-      AndroidWebViewController.enableDebugging(true);
-      (controller.platform as AndroidWebViewController)
-          .setMediaPlaybackRequiresUserGesture(false);
-    }
-    // #enddocregion platform_features
-
-    // Platform-specific tweaks
     if (controller.platform is AndroidWebViewController) {
       AndroidWebViewController.enableDebugging(true);
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    controller..loadRequest(Uri.parse(widget.url));
-
-    setState(() {
-      _controller = controller;
-    });
+    _controller = controller;
   }
 
   @override
@@ -868,7 +859,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (widget.logoAsset != null) ...[
+            if (widget.logoAsset != null && widget.logoAsset!.isNotEmpty) ...[
               Image.asset(widget.logoAsset!, height: 30),
               const SizedBox(height: 4),
             ],
@@ -882,9 +873,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
           ],
         ),
       ),
-      body: _controller == null
-          ? const Center(child: CircularProgressIndicator())
-          : WebViewWidget(controller: _controller!),
+      body: WebViewWidget(controller: _controller),
     );
   }
 }
