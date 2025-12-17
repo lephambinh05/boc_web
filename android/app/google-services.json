@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1070385264722",
+    "project_id": "sudoku-b5173",
+    "storage_bucket": "sudoku-b5173.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1070385264722:android:9a004c0cbfd34ea7cd078b",
+        "android_client_info": {
+          "package_name": "com.mojistudio.sudoku"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHmOr7mYgsGzsWdrIg1UyAU6H-uDuuJqQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
