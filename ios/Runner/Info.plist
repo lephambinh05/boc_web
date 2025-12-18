@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Ứng dụng cần truy cập vị trí để xác định khu vực dịch vụ phù hợp cho bạn.</string>
+    <string>This app needs access to your location to provide service area information.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Ứng dụng cần truy cập vị trí để xác định khu vực dịch vụ phù hợp cho bạn.</string>
+    <string>This app needs access to your location to provide service area information.</string>
 
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
