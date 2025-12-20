@@ -3,13 +3,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/common_widgets.dart';
 import '../custom_dialog.dart';
-import 'game_screen.dart'; // Ensure this points to your SudokuScreen
+
+// Import các màn hình game
+import 'game_screen.dart';
 import 'ranking_screen.dart';
-import 'extra_screens.dart';
+import 'extra_screens.dart'; // Chứa WebViewScreen, PrivacyPolicyScreen, SupportScreen
 import 'tutorial_screen.dart';
+import 'about_screen.dart'; // Đã có import About
 
 class HomeScreen extends StatefulWidget {
-  final User? user; // Made nullable to handle cases where auth might be loading
+  final User? user;
   const HomeScreen({super.key, this.user});
 
   @override
@@ -43,22 +46,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadData() async {
     if (_currentUser == null) return;
     try {
+      // 1. Load Data User
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
       if (userDoc.exists) {
         if (mounted) setState(() => _userData = userDoc.data());
       }
 
-      // Check Admin Settings for Webview
+      // 2. Check Admin Settings cho Webview
       final settings = await FirebaseFirestore.instance.collection('settings').doc('settings_admin').get();
       if (settings.exists && settings.data()?['webView'] == 'on') {
         final web = await FirebaseFirestore.instance.collection('webdata').doc('webdata').get();
         if (web.exists && mounted) {
-          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => WebViewScreen(data: web.data()!)));
+          Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => WebViewScreen(data: web.data()!))
+          );
           return;
         }
       }
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint("Error loading data: $e");
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -66,10 +72,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return BeachBackground(child: const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator(color: Colors.white))));
+      return BeachBackground(
+          child: const Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(child: CircularProgressIndicator(color: Colors.white))
+          )
+      );
     }
 
-    final name = _userData?['displayName'] ?? _currentUser?.displayName ?? 'Player';
+    // --- LOGIC TÊN HIỂN THỊ ---
+    final isGuest = _currentUser?.isAnonymous ?? false;
+    final name = _userData?['displayName'] ?? (_currentUser?.displayName ?? (isGuest ? "Guest Player" : "Player"));
 
     return BeachBackground(
       showBlur: true,
@@ -140,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   const SizedBox(height: 40),
 
-                  // --- PLAY BUTTON (Modern Gradient) ---
+                  // --- PLAY BUTTON ---
                   _buildModernButton(
                     text: "PLAY GAME",
                     icon: Icons.play_arrow_rounded,
@@ -158,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   const SizedBox(height: 15),
 
-                  // --- LEADERBOARD BUTTON (Modern Gradient) ---
+                  // --- LEADERBOARD BUTTON ---
                   _buildModernButton(
                     text: "LEADERBOARD",
                     icon: Icons.emoji_events_outlined,
@@ -179,14 +192,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // Widget Helper for Buttons
   Widget _buildModernButton({required String text, required IconData icon, required Gradient gradient, required VoidCallback onPressed}) {
     return Container(
       width: double.infinity,
-      height: 55, // Smaller, cleaner height
+      height: 55,
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(30), // Pill shape
+        borderRadius: BorderRadius.circular(30),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
       ),
       child: Material(
@@ -217,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-// --- DRAWER UI ---
+// --- DRAWER UI (Đã thêm nút About) ---
 class UserDrawer extends StatelessWidget {
   final User user;
   final Map<String, dynamic>? userData;
@@ -225,12 +237,13 @@ class UserDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = userData?['displayName'] ?? user.displayName ?? 'Player';
+    final isGuest = user.isAnonymous;
+    final name = userData?['displayName'] ?? (isGuest ? "Guest Player" : (user.displayName ?? 'Player'));
+
     final int xp = userData?['xp'] ?? 0;
     final int rp = userData?['rp'] ?? 0;
     final int winStreak = userData?['winStreak'] ?? 0;
 
-    // Rank Logic English
     String rank = 'Bronze';
     if (rp >= 600) rank = 'Platinum';
     else if (rp >= 300) rank = 'Gold';
@@ -246,7 +259,11 @@ class UserDrawer extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [Colors.cyan.shade800, Colors.blue.shade900], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(
+                  colors: [Colors.cyan.shade800, Colors.blue.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,9 +282,17 @@ class UserDrawer extends StatelessWidget {
                 ),
                 const SizedBox(height: 15),
                 Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+
+                if (isGuest)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4.0),
+                    child: Text("(Guest Account)", style: TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic)),
+                  ),
+
                 const SizedBox(height: 10),
                 const Divider(color: Colors.white54, thickness: 1),
                 const SizedBox(height: 10),
+
                 _buildStatRow(Icons.star_rounded, "Level", "${xp ~/ 500}", Colors.yellowAccent),
                 _buildStatRow(Icons.emoji_events_rounded, "Rank", rank, Colors.orangeAccent),
                 _buildStatRow(Icons.local_fire_department_rounded, "Streak", "$winStreak", Colors.redAccent),
@@ -281,8 +306,14 @@ class UserDrawer extends StatelessWidget {
               padding: const EdgeInsets.only(top: 10),
               children: [
                 _buildDrawerItem(context, Icons.menu_book_rounded, 'How to Play', const TutorialScreen()),
+
+                // --- MỚI: Thêm nút About ở đây ---
+                _buildDrawerItem(context, Icons.info_outline_rounded, 'About', const AboutScreen()),
+                // ---------------------------------
+
                 _buildDrawerItem(context, Icons.policy_rounded, 'Privacy Policy', const PrivacyPolicyScreen()),
                 _buildDrawerItem(context, Icons.support_agent_rounded, 'Support', const SupportScreen()),
+
                 ListTile(
                     leading: Icon(Icons.copyright_rounded, color: Colors.cyan.shade900),
                     title: const Text('Copyright', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -304,12 +335,15 @@ class UserDrawer extends StatelessWidget {
             ),
           ),
 
-          // Logout
+          // Logout Button
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: ListTile(
                 leading: const Icon(Icons.logout_rounded, color: Colors.red),
-                title: const Text('Sign Out', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                title: Text(
+                    isGuest ? 'Exit Guest Mode' : 'Sign Out',
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)
+                ),
                 onTap: () => FirebaseAuth.instance.signOut()
             ),
           ),

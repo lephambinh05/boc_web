@@ -22,28 +22,31 @@ dependencies:
   webview_flutter_wkwebview: ^3.13.0
 
   # Tiện ích
-  url_launcher: ^6.3.0 # Gửi email
-  geolocator: ^10.1.0 # Lấy tọa độ GPS
-  geocoding: ^2.1.1 # Chuyển tọa độ thành tên Quốc gia
+  url_launcher: ^6.3.0
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
+  # --- THÊM DÒNG NÀY ---
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  # Thư viện tạo Icon tự động
   flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    # --- THÊM DÒNG NÀY (Nhớ tạo đúng thư mục) ---
+    - assets/sound-effects/
 
-# CẤU HÌNH TẠO ICON TỰ ĐỘNG
+# CẤU HÌNH TẠO ICON TỰ ĐỘNG (Giữ nguyên)
 flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
-  image_path: "assets/images/icon.png" # BẠN CẦN ĐỔI TÊN FILE playstore.png THÀNH icon.png
+  image_path: "assets/images/icon.png"
   min_sdk_android: 21
-  # Cấu hình cho Android đời mới (tránh bị viền trắng)
-  adaptive_icon_background: "#000000" # Màu nền đen (trùng màu logo của bạn)
+  adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/images/icon.png"
