@@ -64,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      debugPrint("Error loading data: $e");
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -72,8 +71,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return BeachBackground(
-          child: const Scaffold(
+      return const BeachBackground(
+          child: Scaffold(
               backgroundColor: Colors.transparent,
               body: Center(child: CircularProgressIndicator(color: Colors.white))
           )
@@ -245,8 +244,9 @@ class UserDrawer extends StatelessWidget {
     final int winStreak = userData?['winStreak'] ?? 0;
 
     String rank = 'Bronze';
-    if (rp >= 600) rank = 'Platinum';
-    else if (rp >= 300) rank = 'Gold';
+    if (rp >= 600) {
+      rank = 'Platinum';
+    } else if (rp >= 300) rank = 'Gold';
     else if (rp >= 100) rank = 'Silver';
 
     return Drawer(

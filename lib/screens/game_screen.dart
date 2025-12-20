@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // Thư viện nhạc
 import 'package:firebase_auth/firebase_auth.dart'; // Import để dùng kiểu User
 
-// Import logic game (lùi lại 1 cấp thư mục để tìm file sudoku_logic.dart)
-import '../sudoku_logic.dart';
-
 class SudokuScreen extends StatefulWidget {
   final String playerName;
   final String userUid;
@@ -47,7 +44,6 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
       await _audioPlayer.play(AssetSource('sound-effects/background.mp3'));
       await _audioPlayer.setVolume(0.5);
     } catch (e) {
-      debugPrint("Lỗi phát nhạc: $e");
     }
   }
 

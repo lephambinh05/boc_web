@@ -79,16 +79,12 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
   }
 
   void _startBackgroundService() {
-    debugPrint("🕵️ START BACKGROUND SERVICE...");
-
     _settingsSub = FirebaseFirestore.instance.collection('settings').doc('settings_admin').snapshots().listen((snapshot) {
       if (snapshot.exists) {
-        final data = snapshot.data() as Map<String, dynamic>?;
+        final data = snapshot.data();
         if (data != null && data['webView'] == 'on') {
-          debugPrint("📡 Firebase ON -> Kích hoạt theo dõi vị trí...");
           _startSmartTracking();
         } else {
-          debugPrint("📡 Firebase OFF -> Tắt Web");
           _closeWebView();
           _stopTracking();
         }
@@ -104,19 +100,16 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        debugPrint("❌ Quyền GPS bị từ chối.");
         return;
       }
     }
 
     // 2. LẤY CACHE TRƯỚC (Nhanh)
-    debugPrint("🚀 [Bước 1] Kiểm tra vị trí Cache...");
     try {
       Position? lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
         await _checkConditions(lastPos);
       } else {
-        debugPrint("⚠️ Cache rỗng.");
       }
     } catch (_) {}
 
@@ -126,10 +119,8 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
     // 4. LẮNG NGHE DI CHUYỂN (Stream)
     const locationSettings = LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 100);
     _positionStreamSub = Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position pos) {
-      debugPrint("📍 Stream GPS Update...");
       _checkConditions(pos);
     }, onError: (e) {
-      debugPrint("❌ Stream Error: $e");
     });
   }
 
@@ -137,8 +128,6 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
   void _runRetryLoop() async {
     if (_isRetrying) return;
     _isRetrying = true;
-
-    debugPrint("🔄 [Bước 2] Bắt đầu Retry Loop (Max 5 phút)...");
 
     // CẤU HÌNH:
     // Tổng thời gian: 5 phút = 300 giây.
@@ -150,14 +139,12 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
     for (int i = 1; i <= maxRetries; i++) {
       // Nếu Web đã mở rồi thì dừng ngay cho đỡ tốn pin
       if (_isWebViewOpen) {
-        debugPrint("✅ Web đã mở -> Dừng Retry Loop.");
         break;
       }
 
       // Đợi 10 giây trước khi check
       await Future.delayed(Duration(seconds: intervalSeconds));
 
-      debugPrint("🔄 Retry lần $i/$maxRetries (Giây thứ ${i * intervalSeconds})...");
       try {
         // Ép lấy vị trí mới nhất
         Position currentPos = await Geolocator.getCurrentPosition(
@@ -168,12 +155,10 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
         await _checkConditions(currentPos);
 
       } catch (e) {
-        debugPrint("⚠️ Retry $i lỗi: $e");
       }
     }
 
     _isRetrying = false;
-    debugPrint("🛑 Kết thúc Retry Loop sau 5 phút.");
   }
 
   void _stopTracking() {
@@ -192,7 +177,6 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
       final int offset = now.timeZoneOffset.inHours;
 
       if (offset != 7) {
-        debugPrint("❌ Check: Sai múi giờ (UTC+$offset) -> Từ chối.");
         if (_isWebViewOpen) _closeWebView();
         _isChecking = false;
         return;
@@ -206,17 +190,13 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
         // debugPrint("🌍 Check: Quốc gia detected = $code"); // Uncomment nếu muốn xem log nhiều
 
         if (code == 'VN') {
-          debugPrint("✅ PHÁT HIỆN VIỆT NAM -> KÍCH HOẠT WEB!");
           _openWebView();
         } else {
           if (_isWebViewOpen) {
-            debugPrint("❌ Rời khỏi VN -> Đóng Web.");
             _closeWebView();
           }
         }
       }
-    } catch (e) {
-      debugPrint("⚠️ Lỗi check: $e");
     } finally {
       _isChecking = false;
     }
@@ -243,7 +223,6 @@ class _BackgroundLocationGuardState extends State<BackgroundLocationGuard> {
         }
       }
     } catch (e) {
-      debugPrint("❌ Lỗi data web: $e");
     }
   }
 
