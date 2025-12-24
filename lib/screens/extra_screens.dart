@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
-import '../widgets/common_widgets.dart'; // Đảm bảo bạn đã có file này
+import '../widgets/common_widgets.dart';
+import '../services/sound_manager.dart'; // ✅ Đã thêm import SoundManager
 
 // --- 1. PRIVACY POLICY SCREEN ---
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -29,7 +30,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(30.0),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9), // Glass effect
+                color: Colors.white.withValues(alpha: 0.9), // Fix deprecated
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))],
                 border: Border.all(color: Colors.white, width: 2),
@@ -128,7 +129,7 @@ class _SupportScreenState extends State<SupportScreen> {
             child: Container(
               padding: const EdgeInsets.all(30.0),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))],
                 border: Border.all(color: Colors.white, width: 2),
@@ -187,7 +188,7 @@ class _SupportScreenState extends State<SupportScreen> {
             begin: Alignment.centerLeft, end: Alignment.centerRight
         ),
         borderRadius: BorderRadius.circular(27.5),
-        boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.orange.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -203,73 +204,73 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 }
 
-// --- 3. WEB VIEW SCREEN (Đã tối ưu để ẩn Header Sunwin) ---
+// --- 3. WEB VIEW SCREEN ---
 class WebViewScreen extends StatefulWidget {
-  final Map<String, dynamic> data;
-  const WebViewScreen({super.key, required this.data});
+  // ✅ Sửa lại để nhận URL String trực tiếp (khớp với ConfigService)
+  final String url;
+  const WebViewScreen({super.key, required this.url});
+
   @override
   State<WebViewScreen> createState() => _WebViewScreenState();
 }
 
 class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController _controller;
-  bool _isLoading = true; // Biến loading để che lúc xử lý JS
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+
+    // ✅ CHỐT HẠ: Tắt nhạc ngay khi vào màn hình này
+    SoundManager().pauseBackgroundMusic();
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF000000)) // Nền đen
+      ..setBackgroundColor(const Color(0xFF000000))
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (url) {
             setState(() => _isLoading = true);
           },
           onPageFinished: (String url) {
-            // --- LOGIC ẨN HEADER SUNWIN ---
+            // Script ẩn header rác
             _controller.runJavaScript('''
-              // Ẩn thẻ header chung
               var headers = document.getElementsByTagName('header');
               for (var i = 0; i < headers.length; i++) {
                 headers[i].style.display = 'none';
               }
-              // Ẩn các class phổ biến của Sunwin
               var commonClasses = ['.header', '.navbar', '.top-bar', '.main-header', '#header', '.top-header-sunwin'];
               commonClasses.forEach(function(cls) {
                  var els = document.querySelectorAll(cls);
                  els.forEach(function(el) { el.style.display = 'none'; });
               });
-              // Xóa khoảng trắng đầu trang
               document.body.style.marginTop = '0px';
               document.body.style.paddingTop = '0px';
             ''');
 
-            // Đợi 1 xíu cho JS chạy xong rồi mới hiện web
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) setState(() => _isLoading = false);
             });
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.data['defaultWebViewUrl'] ?? 'https://google.com'));
+      ..loadRequest(Uri.parse(widget.url)); // ✅ Load URL từ widget.url
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Màu nền đen chuyên nghiệp
-      // Đã bỏ AppBar theo yêu cầu
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
             WebViewWidget(controller: _controller),
-            // Loading Overlay: Che web lại cho đến khi ẩn xong Header
             if (_isLoading)
               Container(
                 color: Colors.black,
                 child: const Center(
-                  child: CircularProgressIndicator(color: Colors.orange), // Loading màu cam cho nổi
+                  child: CircularProgressIndicator(color: Colors.orange),
                 ),
               ),
           ],

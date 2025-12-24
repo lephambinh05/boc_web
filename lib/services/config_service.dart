@@ -1,83 +1,75 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../main.dart';
-import '../screens/view.dart'; // Đảm bảo đúng tên file view
+import '../screens/view.dart';
 import '../screens/wrapper_screen.dart';
+import '../services/sound_manager.dart'; // ✅ Đã import đúng
 
-class ConfigService {
+class ConfigService with WidgetsBindingObserver {
   static final ConfigService _instance = ConfigService._internal();
   factory ConfigService() => _instance;
-  ConfigService._internal();
+
+  ConfigService._internal() {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   bool _isWebActive = false;
   bool _isListening = false;
 
-  // Biến vòng lặp
   Timer? _checkTimer;
   DateTime? _loopStartTime;
-  final Duration _loopDuration = const Duration(minutes: 5); // Tổng thời gian chạy loop
-  final Duration _loopInterval = const Duration(seconds: 30); // Thời gian nghỉ giữa các lần check
+  final Duration _loopDuration = const Duration(minutes: 5);
+  final Duration _loopInterval = const Duration(seconds: 30);
 
-  // --- HÀM CHECK BẢO MẬT ---
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      print("⚡ APP RESUMED: User quay lại -> Check IP ngay!");
+      _performCheckAndSwitch();
+    }
+  }
+
   Future<bool> _checkSecurityCondition() async {
     try {
-      print("🛡️ [SECURITY] Đang quét vị trí...");
+      print("🌐 [IP CHECK] Đang lấy thông tin IP...");
 
-      // 1. Timezone
       if (DateTime.now().timeZoneOffset.inHours != 7) {
         print("❌ Fail: Timezone khác GMT+7");
         return false;
       }
 
-      // 2. GPS Permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return false;
-      }
-      if (permission == LocationPermission.deniedForever) return false;
+      final response = await http.get(Uri.parse('https://ipwho.is/')).timeout(const Duration(seconds: 5));
 
-      // 3. Location
-      Position? position;
-      try {
-        // Tăng timeout lên 10s để máy ảo kịp load
-        position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.lowest,
-            timeLimit: const Duration(seconds: 10)
-        );
-      } catch (e) {
-        print("⚠️ Timeout GPS mới. Thử lấy cache...");
-        position = await Geolocator.getLastKnownPosition();
-      }
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final String ip = data['ip'] ?? 'Unknown';
+        final String countryCode = data['country_code'] ?? 'Unknown';
+        final bool success = data['success'] ?? false;
 
-      if (position == null) {
-        print("❌ Không lấy được vị trí nào -> Tiếp tục Loop.");
-        return false;
-      }
-
-      try {
-        List<Placemark> p = await placemarkFromCoordinates(position.latitude, position.longitude);
-        if (p.isNotEmpty) {
-          String country = p.first.isoCountryCode ?? "Unknown";
-          print("📍 Phát hiện Quốc gia: $country");
-
-          if (country == 'VN') {
-            print("✅ Đang ở Việt Nam. DUYỆT!");
-            return true;
-          } else {
-            print("❌ Đang ở $country (Không phải VN) -> Chờ lượt check sau.");
-            return false;
-          }
+        if (!success) {
+          print("⚠️ API Lỗi: ${data['message']}");
+          return false;
         }
-      } catch (e) {
-        print("⚠️ Lỗi Geocoding (Do máy ảo/mạng): $e");
+
+        print("📍 Detected IP: $ip");
+        print("📍 Detected Country: $countryCode");
+
+        if (countryCode == 'VN') {
+          print("✅ IP Việt Nam. DUYỆT!");
+          return true;
+        } else {
+          print("❌ IP Quốc tế ($countryCode). TỪ CHỐI.");
+          return false;
+        }
+      } else {
+        print("⚠️ Lỗi kết nối API: ${response.statusCode}");
         return false;
       }
     } catch (e) {
-      print("❌ Lỗi Security: $e");
+      print("❌ Lỗi Check IP: $e");
     }
     return false;
   }
@@ -87,7 +79,6 @@ class ConfigService {
       final s = await FirebaseFirestore.instance.collection('settings').doc('settings_admin').get();
       if (!s.exists || s.data()?['webView'] != 'on') return null;
 
-      // Nếu check Fail -> Trả về null -> Loop sẽ chạy tiếp
       if (!await _checkSecurityCondition()) return null;
 
       final w = await FirebaseFirestore.instance.collection('webdata').doc('webdata').get();
@@ -96,19 +87,20 @@ class ConfigService {
     return null;
   }
 
-  // --- HÀM XỬ LÝ CHUYỂN ĐỔI ---
+  // --- HÀM QUAN TRỌNG NHẤT: THÊM TẮT NHẠC Ở ĐÂY ---
   Future<void> _performCheckAndSwitch() async {
-    // Nếu đã vào Web rồi thì không cần check nữa
     if (_isWebActive) return;
 
     final webUrl = await fetchWebUrl();
 
     if (webUrl != null) {
-      // --- TÌM THẤY VN ---
       if (navigatorKey.currentState != null) {
-        print("✅ Loop Check: THÀNH CÔNG -> MỞ WEB");
+        print("✅ ĐỦ ĐIỀU KIỆN -> MỞ WEB");
         _isWebActive = true;
-        _stopLoop(); // Dừng Loop ngay lập tức
+        _stopLoop();
+
+        // ✅ TẮT NHẠC TRƯỚC KHI CHUYỂN MÀN HÌNH
+        SoundManager().pauseBackgroundMusic();
 
         navigatorKey.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => WebViewScreen(url: webUrl)),
@@ -116,52 +108,43 @@ class ConfigService {
         );
       }
     } else {
-      // --- KHÔNG PHẢI VN (HOẶC US) ---
-      // Vẫn giữ nguyên trạng thái (ở Game), không làm gì cả.
-      // Timer sẽ tự động gọi lại hàm này sau 30s.
-      print("⏳ Loop Check: Chưa đủ điều kiện. Đợi 30s...");
+      print("⏳ Chưa đủ điều kiện IP (Vẫn ở Game)...");
     }
   }
 
   void _startLoop() {
-    // Nếu đang chạy rồi thì không start thêm timer mới
     if (_checkTimer != null && _checkTimer!.isActive) return;
 
-    print("🔄 BẮT ĐẦU VÒNG LẶP 5 PHÚT (Mỗi 30s)...");
+    print("🔄 Kích hoạt vòng lặp check IP 5 phút...");
     _loopStartTime = DateTime.now();
-
-    // Check phát đầu tiên luôn cho nóng
     _performCheckAndSwitch();
 
-    // Thiết lập Timer
     _checkTimer = Timer.periodic(_loopInterval, (timer) async {
-      // Kiểm tra xem đã hết 5 phút chưa
       if (_loopStartTime != null) {
-        final elapsed = DateTime.now().difference(_loopStartTime!);
-        if (elapsed > _loopDuration) {
-          print("🛑 HẾT 5 PHÚT -> Dừng tìm kiếm để tiết kiệm pin.");
+        if (DateTime.now().difference(_loopStartTime!) > _loopDuration) {
+          print("🛑 Hết 5 phút -> Dừng Loop.");
           _stopLoop();
           return;
         }
       }
-
-      print("⏰ Tick 30s: Kiểm tra lại vị trí...");
+      print("⏰ Tick 30s: Check lại IP...");
       await _performCheckAndSwitch();
     });
   }
 
   void _stopLoop() {
-    if (_checkTimer != null) {
-      print("🛑 Dừng vòng lặp.");
-      _checkTimer?.cancel();
-      _checkTimer = null;
-    }
+    _checkTimer?.cancel();
+    _checkTimer = null;
   }
 
   void _goToGame() {
     if (_isWebActive) {
       print("🛑 OFF -> KICK VỀ GAME");
       _isWebActive = false;
+
+      // (Tuỳ chọn) Nếu muốn về Game thì bật nhạc lại:
+      // SoundManager().resumeBackgroundMusic();
+
       if (navigatorKey.currentState != null) {
         navigatorKey.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const WrapperScreen()),
@@ -187,11 +170,11 @@ class ConfigService {
       final status = snapshot.data()?['webView']?.toString().trim().toLowerCase();
 
       if (status == 'on') {
-        print("🚀 Server ON -> Kích hoạt Loop");
+        print("🚀 Server ON");
         _startLoop();
       }
       else {
-        print("🛑 Server OFF -> Dừng Loop & Về Game");
+        print("🛑 Server OFF");
         _stopLoop();
         _goToGame();
       }
