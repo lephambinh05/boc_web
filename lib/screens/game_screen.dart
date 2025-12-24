@@ -230,9 +230,9 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         context: context,
         barrierDismissible: false,
         builder: (context) => CustomDialog(
-          title: 'CHIẾN THẮNG!',
-          content: 'Chúc mừng ${widget.playerName}!\nBạn đã hoàn thành trong ${_formatTime(_secondsElapsed)}.',
-          buttonText: 'CHƠI TIẾP',
+          title: 'WINNER!',
+          content: 'CONGRATULATIONS, ${widget.playerName}!\nYou solved the puzzle in ${_formatTime(_secondsElapsed)}.',
+          buttonText: 'CONTINUE',
           icon: Icons.emoji_events_rounded,
           iconColor: Colors.amber,
           onPressed: () {
@@ -270,7 +270,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         });
       });
     } catch(e) {
-      debugPrint("Lỗi save score: $e");
+      debugPrint("Save score error: $e");
     }
   }
 
@@ -432,7 +432,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                         ElevatedButton.icon(
                           onPressed: _onClearTapped,
                           icon: const Icon(Icons.backspace_outlined, size: 22),
-                          label: const Text("XÓA", style: TextStyle(fontSize: 16)),
+                          label: const Text("DELETE", style: TextStyle(fontSize: 16)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade400,
                             foregroundColor: Colors.white,
@@ -443,7 +443,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                         ElevatedButton.icon(
                           onPressed: _onValidateTapped,
                           icon: const Icon(Icons.check_circle_outline, size: 22),
-                          label: const Text("KIỂM TRA", style: TextStyle(fontSize: 16)),
+                          label: const Text("CHECK", style: TextStyle(fontSize: 16)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green.shade600,
                             foregroundColor: Colors.white,
