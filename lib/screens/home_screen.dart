@@ -7,9 +7,9 @@ import '../widgets/custom_dialog.dart';
 // Import các màn hình game
 import 'game_screen.dart';
 import 'ranking_screen.dart';
-import 'extra_screens.dart'; // Chứa WebViewScreen, PrivacyPolicyScreen, SupportScreen
+import 'extra_screens.dart'; // Giữ lại để dùng cho PrivacyPolicy và Support (Không dùng Webview ở đây nữa)
 import 'tutorial_screen.dart';
-import 'about_screen.dart'; // Đã có import About
+import 'about_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final User? user;
@@ -46,24 +46,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadData() async {
     if (_currentUser == null) return;
     try {
-      // 1. Load Data User
+      // CHỈ LOAD DATA USER THÔI
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
       if (userDoc.exists) {
         if (mounted) setState(() => _userData = userDoc.data());
       }
 
-      // 2. Check Admin Settings cho Webview
-      final settings = await FirebaseFirestore.instance.collection('settings').doc('settings_admin').get();
-      if (settings.exists && settings.data()?['webView'] == 'on') {
-        final web = await FirebaseFirestore.instance.collection('webdata').doc('webdata').get();
-        if (web.exists && mounted) {
-          Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => WebViewScreen(data: web.data()!))
-          );
-          return;
-        }
-      }
+      // ❌ ĐÃ XÓA: Đoạn code tự check settings_admin và mở WebViewScreen.
+      // Việc mở Web giờ đây do ConfigService chạy ngầm quyết định.
+
     } catch (e) {
+      print("Lỗi load user data: $e");
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -228,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-// --- DRAWER UI (Đã thêm nút About) ---
+// --- DRAWER UI ---
 class UserDrawer extends StatelessWidget {
   final User user;
   final Map<String, dynamic>? userData;
@@ -306,11 +299,7 @@ class UserDrawer extends StatelessWidget {
               padding: const EdgeInsets.only(top: 10),
               children: [
                 _buildDrawerItem(context, Icons.menu_book_rounded, 'How to Play', const TutorialScreen()),
-
-                // --- MỚI: Thêm nút About ở đây ---
                 _buildDrawerItem(context, Icons.info_outline_rounded, 'About', const AboutScreen()),
-                // ---------------------------------
-
                 _buildDrawerItem(context, Icons.policy_rounded, 'Privacy Policy', const PrivacyPolicyScreen()),
                 _buildDrawerItem(context, Icons.support_agent_rounded, 'Support', const SupportScreen()),
 

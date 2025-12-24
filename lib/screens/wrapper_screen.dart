@@ -1,10 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/config_service.dart';
-import '../services/sound_manager.dart'; // Nhớ import sound manager của bạn
+import '../services/sound_manager.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
-import 'view.dart';
 import '../widgets/app_background.dart';
 
 class WrapperScreen extends StatefulWidget {
@@ -18,7 +17,13 @@ class _WrapperScreenState extends State<WrapperScreen> {
   @override
   void initState() {
     super.initState();
+    print("🚩 WRAPPER: InitState -> Kích hoạt ConfigService chạy ngầm...");
     SoundManager().startBackgroundMusic();
+
+    // ConfigService tự chạy ngầm, Wrapper không chờ nó
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ConfigService().startListening();
+    });
   }
 
   @override
@@ -26,29 +31,20 @@ class _WrapperScreenState extends State<WrapperScreen> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // 1. Nếu chưa đăng nhập -> Hiện màn hình Login
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
         if (!snapshot.hasData) {
+          print("🚩 WRAPPER: Chưa Login -> Hiện AuthScreen");
           return const BeachBackground(child: AuthScreen());
         }
 
-        // 2. Nếu đã đăng nhập -> Check Config (Web hay Game)
-        return FutureBuilder<String?>(
-          future: ConfigService().fetchWebUrl(),
-          builder: (context, configSnapshot) {
-            if (configSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
-            }
-
-            final webUrl = configSnapshot.data;
-            if (webUrl != null && webUrl.isNotEmpty) {
-              // 3a. Có link Web -> Vào Web
-              return WebViewScreen(url: webUrl);
-            }
-
-            // 3b. Không có link Web -> Vào Game
-            return HomeScreen(user: snapshot.data!);
-          },
-        );
+        // --- ĐÂY LÀ CHỖ QUAN TRỌNG NHẤT ---
+        print("🚩 WRAPPER: Đã Login -> BẮT BUỘC HIỆN HOMESCREEN (GAME)");
+        // Nếu ở đây bạn thấy log này nhưng màn hình vẫn ra Web
+        // Thì chứng tỏ HomeScreen của bạn đang chứa Webview!
+        return HomeScreen(user: snapshot.data);
       },
     );
   }

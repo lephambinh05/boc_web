@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/wrapper_screen.dart';
-import 'services/config_service.dart';
 
-// 1. KHAI BÁO BIẾN TOÀN CỤC
+// Biến toàn cục
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // 2. KÍCH HOẠT LẮNG NGHE
-  ConfigService().startListening();
+  // ❌ XÓA DÒNG NÀY: ConfigService().startListening();
+  // Để vào màn hình rồi mới gọi, tránh việc check khi app chưa lên hình.
 
   runApp(const MyApp());
 }
@@ -22,31 +21,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 3. GẮN CHÌA KHÓA VÀO APP
-      navigatorKey: navigatorKey,
-
+      navigatorKey: navigatorKey, // Vẫn giữ cái này
       title: 'Sudoku Beach',
       debugShowCheckedModeBanner: false,
-
-      // Theme cũ của bạn (mình copy lại để đảm bảo không lỗi)
       theme: ThemeData(
+        // ... (Giữ nguyên theme của bạn) ...
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.cyan, primary: Colors.cyan.shade800),
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.transparent,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            shadows: [Shadow(offset: Offset(1.5, 1.5), blurRadius: 3.0, color: Colors.black45)],
-          ),
-        ),
       ),
-      home: const WrapperScreen(),
+      home: const WrapperScreen(), // Vào đây đầu tiên
     );
   }
 }
