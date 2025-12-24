@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/common_widgets.dart';
-import '../custom_dialog.dart';
+import '../widgets/custom_dialog.dart';
 
 // Import các màn hình game
 import 'game_screen.dart';

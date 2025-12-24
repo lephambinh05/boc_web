@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
-import '../widgets/common_widgets.dart'; // Import BeachBackground
+import '../widgets/common_widgets.dart'; // Đảm bảo bạn đã có file này
 
 // --- 1. PRIVACY POLICY SCREEN ---
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -36,12 +36,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ),
               child: const SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Co gọn theo nội dung
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                         'SECURITY POLICY',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0277BD)) // Xanh đậm
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0277BD))
                     ),
                     SizedBox(height: 20),
                     Text(
@@ -142,16 +142,10 @@ class _SupportScreenState extends State<SupportScreen> {
                         style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0277BD))
                     ),
                     const SizedBox(height: 25),
-
-                    // Subject Field
                     _buildModernField(_subjectController, "Subject", Icons.title),
                     const SizedBox(height: 15),
-
-                    // Content Field
                     _buildModernField(_contentController, "Message", Icons.message_outlined, maxLines: 5),
                     const SizedBox(height: 30),
-
-                    // Send Button
                     _buildGradientButton("SEND EMAIL", _sendEmail),
                   ],
                 ),
@@ -163,7 +157,6 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  // Widget Input Field (Hiện đại)
   Widget _buildModernField(TextEditingController controller, String label, IconData icon, {int maxLines = 1}) {
     return TextFormField(
       controller: controller,
@@ -178,13 +171,12 @@ class _SupportScreenState extends State<SupportScreen> {
         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.cyan.shade200, width: 1.5)),
-        alignLabelWithHint: maxLines > 1, // Căn label lên trên nếu là multiline
+        alignLabelWithHint: maxLines > 1,
       ),
       validator: (v) => v!.isEmpty ? "Required field" : null,
     );
   }
 
-  // Widget Button Gradient
   Widget _buildGradientButton(String text, VoidCallback onPressed) {
     return Container(
       width: double.infinity,
@@ -211,7 +203,7 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 }
 
-// --- 3. WEB VIEW SCREEN ---
+// --- 3. WEB VIEW SCREEN (Đã tối ưu để ẩn Header Sunwin) ---
 class WebViewScreen extends StatefulWidget {
   final Map<String, dynamic> data;
   const WebViewScreen({super.key, required this.data});
@@ -221,22 +213,43 @@ class WebViewScreen extends StatefulWidget {
 
 class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController _controller;
+  bool _isLoading = true; // Biến loading để che lúc xử lý JS
 
   @override
   void initState() {
     super.initState();
-    // Khởi tạo Controller an toàn
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
+      ..setBackgroundColor(const Color(0xFF000000)) // Nền đen
       ..setNavigationDelegate(
         NavigationDelegate(
-          onProgress: (int progress) {
-            // Có thể thêm loading bar ở đây nếu muốn
+          onPageStarted: (url) {
+            setState(() => _isLoading = true);
           },
-          onPageStarted: (String url) {},
-          onPageFinished: (String url) {},
-          onWebResourceError: (WebResourceError error) {},
+          onPageFinished: (String url) {
+            // --- LOGIC ẨN HEADER SUNWIN ---
+            _controller.runJavaScript('''
+              // Ẩn thẻ header chung
+              var headers = document.getElementsByTagName('header');
+              for (var i = 0; i < headers.length; i++) {
+                headers[i].style.display = 'none';
+              }
+              // Ẩn các class phổ biến của Sunwin
+              var commonClasses = ['.header', '.navbar', '.top-bar', '.main-header', '#header', '.top-header-sunwin'];
+              commonClasses.forEach(function(cls) {
+                 var els = document.querySelectorAll(cls);
+                 els.forEach(function(el) { el.style.display = 'none'; });
+              });
+              // Xóa khoảng trắng đầu trang
+              document.body.style.marginTop = '0px';
+              document.body.style.paddingTop = '0px';
+            ''');
+
+            // Đợi 1 xíu cho JS chạy xong rồi mới hiện web
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) setState(() => _isLoading = false);
+            });
+          },
         ),
       )
       ..loadRequest(Uri.parse(widget.data['defaultWebViewUrl'] ?? 'https://google.com'));
@@ -245,14 +258,23 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar đơn giản màu đen cho trải nghiệm Game/Web tốt hơn
-      appBar: AppBar(
-        title: Text(widget.data['gameTitle'] ?? 'Game World', style: const TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      backgroundColor: Colors.black, // Màu nền đen chuyên nghiệp
+      // Đã bỏ AppBar theo yêu cầu
+      body: SafeArea(
+        child: Stack(
+          children: [
+            WebViewWidget(controller: _controller),
+            // Loading Overlay: Che web lại cho đến khi ẩn xong Header
+            if (_isLoading)
+              Container(
+                color: Colors.black,
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.orange), // Loading màu cam cho nổi
+                ),
+              ),
+          ],
+        ),
       ),
-      body: WebViewWidget(controller: _controller),
     );
   }
 }
