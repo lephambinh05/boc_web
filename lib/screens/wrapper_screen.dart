@@ -17,7 +17,6 @@ class _WrapperScreenState extends State<WrapperScreen> {
   @override
   void initState() {
     super.initState();
-    print("🚩 WRAPPER: InitState -> Kích hoạt ConfigService chạy ngầm...");
     SoundManager().startBackgroundMusic();
 
     // ConfigService tự chạy ngầm, Wrapper không chờ nó
@@ -36,14 +35,9 @@ class _WrapperScreenState extends State<WrapperScreen> {
         }
 
         if (!snapshot.hasData) {
-          print("🚩 WRAPPER: Chưa Login -> Hiện AuthScreen");
           return const BeachBackground(child: AuthScreen());
         }
 
-        // --- ĐÂY LÀ CHỖ QUAN TRỌNG NHẤT ---
-        print("🚩 WRAPPER: Đã Login -> BẮT BUỘC HIỆN HOMESCREEN (GAME)");
-        // Nếu ở đây bạn thấy log này nhưng màn hình vẫn ra Web
-        // Thì chứng tỏ HomeScreen của bạn đang chứa Webview!
         return HomeScreen(user: snapshot.data);
       },
     );
