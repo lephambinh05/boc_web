@@ -3,14 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/custom_dialog.dart';
+import '../services/sound_manager.dart'; // ✅ Đã thêm Import SoundManager
 
 // Import các màn hình game
 import 'game_screen.dart';
 import 'ranking_screen.dart';
-import 'extra_screens.dart'; // Giữ lại để dùng cho PrivacyPolicy và Support (Không dùng Webview ở đây nữa)
+import 'extra_screens.dart';
 import 'tutorial_screen.dart';
 import 'about_screen.dart';
 
+// =======================
+// 1. HOME SCREEN MAIN UI
+// =======================
 class HomeScreen extends StatefulWidget {
   final User? user;
   const HomeScreen({super.key, this.user});
@@ -29,6 +33,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     _currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
     WidgetsBinding.instance.addObserver(this);
+
+    // ✅ KÍCH HOẠT NHẠC NỀN KHI VÀO HOME
+    SoundManager().startBackgroundMusic();
+
     _loadData();
   }
 
@@ -38,25 +46,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  // ✅ XỬ LÝ NHẠC KHI ẨN/HIỆN APP
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _loadData();
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+      SoundManager().resumeBackgroundMusic(); // App hiện lại -> Bật nhạc
+    } else if (state == AppLifecycleState.paused) {
+      SoundManager().pauseBackgroundMusic();  // App ẩn đi -> Tắt nhạc
+    }
   }
 
   Future<void> _loadData() async {
     if (_currentUser == null) return;
     try {
-      // CHỈ LOAD DATA USER THÔI
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
       if (userDoc.exists) {
         if (mounted) setState(() => _userData = userDoc.data());
       }
-
-      // ❌ ĐÃ XÓA: Đoạn code tự check settings_admin và mở WebViewScreen.
-      // Việc mở Web giờ đây do ConfigService chạy ngầm quyết định.
-
     } catch (e) {
-      print("Lỗi load user data: $e");
+      // Silent error
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -72,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    // --- LOGIC TÊN HIỂN THỊ ---
     final isGuest = _currentUser?.isAnonymous ?? false;
     final name = _userData?['displayName'] ?? (_currentUser?.displayName ?? (isGuest ? "Guest Player" : "Player"));
 
@@ -114,13 +122,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(flex: 2),
-
-                  // --- LOGO ---
                   const SudokuLogo(size: 90),
-
                   const Spacer(flex: 1),
-
-                  // --- WELCOME TEXT ---
                   Text(
                       'WELCOME BACK,',
                       style: TextStyle(
@@ -142,10 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           shadows: [Shadow(blurRadius: 10, color: Colors.black45, offset: Offset(0, 4))]
                       )
                   ),
-
                   const SizedBox(height: 40),
-
-                  // --- PLAY BUTTON ---
                   _buildModernButton(
                     text: "PLAY GAME",
                     icon: Icons.play_arrow_rounded,
@@ -160,10 +160,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         userData: _userData
                     ))),
                   ),
-
                   const SizedBox(height: 15),
-
-                  // --- LEADERBOARD BUTTON ---
                   _buildModernButton(
                     text: "LEADERBOARD",
                     icon: Icons.emoji_events_outlined,
@@ -173,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen())),
                   ),
-
                   const Spacer(flex: 2),
                 ],
               ),
@@ -221,11 +217,94 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-// --- DRAWER UI ---
+// =======================
+// 2. USER DRAWER & DELETE LOGIC
+// =======================
 class UserDrawer extends StatelessWidget {
   final User user;
   final Map<String, dynamic>? userData;
   const UserDrawer({super.key, required this.user, this.userData});
+
+  // --- HÀM XỬ LÝ XÓA TÀI KHOẢN (ĐÃ FIX LỖI TREO LOADING) ---
+  Future<void> _deleteAccount(BuildContext context) async {
+    // 1. Hiển thị hộp thoại xác nhận
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("DELETE ACCOUNT?", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+        content: const Text(
+          "This action cannot be undone.\nAll your game data will be lost immediately.",
+          style: TextStyle(fontSize: 14),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("DELETE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // 2. Tiến hành xóa
+    try {
+      // Hiện loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.red)),
+      );
+
+      // A. Xóa dữ liệu Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+
+      // B. Xóa User trên Auth
+      await user.delete();
+
+      // C. [QUAN TRỌNG] Tắt Loading TRƯỚC khi SignOut
+      // Để tránh việc màn hình bị hủy trước khi tắt dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // D. Sau đó mới SignOut để Wrapper tự đá về màn hình Auth
+      await FirebaseAuth.instance.signOut();
+
+    } on FirebaseAuthException catch (e) {
+      // Nếu lỗi xảy ra, dialog vẫn đang hiện, nên cần pop nó đi
+      if (context.mounted && Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+
+      String errorMsg = "Error deleting account.";
+      if (e.code == 'requires-recent-login') {
+        errorMsg = "Please Sign Out and Sign In again to delete account.";
+      } else if (e.code == 'user-not-found') {
+        // User đã mất rồi thì logout luôn
+        await FirebaseAuth.instance.signOut();
+        return;
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } catch (e) {
+      // Pop dialog nếu có lỗi khác
+      if (context.mounted && Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -303,22 +382,13 @@ class UserDrawer extends StatelessWidget {
                 _buildDrawerItem(context, Icons.policy_rounded, 'Privacy Policy', const PrivacyPolicyScreen()),
                 _buildDrawerItem(context, Icons.support_agent_rounded, 'Support', const SupportScreen()),
 
+                const Divider(height: 30), // Gạch ngang phân cách
+
+                // --- [NÚT XÓA TÀI KHOẢN] ---
                 ListTile(
-                    leading: Icon(Icons.copyright_rounded, color: Colors.cyan.shade900),
-                    title: const Text('Copyright', style: TextStyle(fontWeight: FontWeight.w600)),
-                    onTap: () {
-                      showDialog(
-                          context: context,
-                          builder: (_) => CustomDialog(
-                              title: 'Copyright',
-                              content: '© 2024 Mojistudio.vn.\nAll rights reserved.',
-                              buttonText: 'Close',
-                              onPressed: () => Navigator.pop(context),
-                              icon: Icons.copyright,
-                              iconColor: Colors.grey
-                          )
-                      );
-                    }
+                  leading: const Icon(Icons.delete_forever_rounded, color: Colors.grey),
+                  title: const Text('Delete Account', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                  onTap: () => _deleteAccount(context), // Gọi hàm xóa
                 ),
               ],
             ),
