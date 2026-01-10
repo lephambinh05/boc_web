@@ -16,37 +16,38 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   void initState() {
     super.initState();
+
     _controller = WebViewController()
+    // 1. BẮT BUỘC: Cho phép chạy Javascript (Game/Web app cần cái này để chạy)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
+
+    // 2. Màu nền đen (để lúc load không bị chớp trắng)
+      ..setBackgroundColor(Colors.black)
+
+    // 3. Cấu hình điều hướng
       ..setNavigationDelegate(
         NavigationDelegate(
-          // --- SỬA LỖI 1: Thêm check mounted ở onPageStarted ---
-          onPageStarted: (url) {
-            if (mounted) {
-              setState(() => _isLoading = true);
-            }
+          // Bắt đầu load -> Hiện vòng xoay
+          onPageStarted: (String url) {
+            if (mounted) setState(() => _isLoading = true);
           },
-          onPageFinished: (String url) {
-            // --- THUỐC ĐẶC TRỊ HEADER SUNWIN ---
-            _controller.runJavaScript('''
-              var style = document.createElement('style');
-              style.innerHTML = "header, nav, .header, .navbar, .top-bar, #header, .sunwin-header, div[class*='header'], div[class*='nav'] { display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; }";
-              document.head.appendChild(style);
-              setInterval(function() {
-                var headers = document.querySelectorAll('header, nav, .header, .navbar, #header, .top-header-sunwin');
-                headers.forEach(function(e) { e.remove(); });
-                document.body.style.paddingTop = "0px";
-                document.body.style.marginTop = "0px";
-              }, 500);
-            ''');
 
-            // --- SỬA LỖI 2: Check mounted trong Future (Bạn đã có, nhưng giữ lại cho chắc) ---
-            Future.delayed(const Duration(seconds: 1), () {
-              if (mounted) {
-                setState(() => _isLoading = false);
-              }
-            });
+          // Load xong -> Tắt vòng xoay
+          onPageFinished: (String url) {
+            // ✅ ĐÃ XÓA SẠCH: Không còn dòng runJavaScript nào ở đây cả.
+            // Web của bạn sẽ hiển thị nguyên gốc 100%.
+
+            if (mounted) setState(() => _isLoading = false);
+          },
+
+          // Báo lỗi nếu web chết (để debug)
+          onWebResourceError: (WebResourceError error) {
+            // print("Web Error: ${error.description}");
+          },
+
+          // ✅ KHÔNG CHẶN GÌ CẢ: Cho phép chuyển trang thoải mái
+          onNavigationRequest: (NavigationRequest request) {
+            return NavigationDecision.navigate;
           },
         ),
       )
@@ -55,20 +56,35 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            WebViewWidget(controller: _controller),
-            if (_isLoading)
-              Container(
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.cyan),
+    // Xử lý nút Back trên điện thoại:
+    // Nếu Web quay lại được thì quay lại trang trước.
+    // Nếu hết trang để quay lại thì mới thoát App.
+    return WillPopScope(
+      onWillPop: () async {
+        if (await _controller.canGoBack()) {
+          _controller.goBack();
+          return false; // Ở lại Webview
+        }
+        return true; // Thoát ra màn hình chính
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black, // Nền full đen
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // 1. Nội dung Web
+              WebViewWidget(controller: _controller),
+
+              // 2. Loading (Chỉ hiện khi đang tải)
+              if (_isLoading)
+                Container(
+                  color: Colors.black,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.cyan),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
