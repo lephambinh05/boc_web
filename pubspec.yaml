@@ -1,7 +1,7 @@
-name: jun_sudoku
-description: "Jun Sudoku - Trò chơi giải đố thông minh Việt Nam"
+name: ku_puzzle
+description: "Ku Puzzle - Trò chơi giải đố thông minh Việt Nam"
 publish_to: "none"
-version: 2.0.1+1
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
