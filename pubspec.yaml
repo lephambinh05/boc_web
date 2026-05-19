@@ -35,6 +35,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.3
 
 flutter:
   uses-material-design: true
@@ -47,8 +48,18 @@ flutter:
 # CẤU HÌNH TẠO ICON TỰ ĐỘNG (Giữ nguyên)
 flutter_launcher_icons:
   android: "ic_launcher"
-  ios: true
-  image_path: "assets/images/icon.png"
+  ios: false
+  image_path: "AppIcons/playstore.png"
   min_sdk_android: 21
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/images/icon.png"
+  adaptive_icon_foreground: "AppIcons/playstore.png"
+
+# CẤU HÌNH NATIVE SPLASH SCREEN
+flutter_native_splash:
+  color: "#0a2d37"
+  background_image: "assets/images/sudoku_bg.png"
+  image: "AppIcons/playstore.png"
+  android_12:
+    image: "AppIcons/playstore.png"
+    icon_background_color: "#0a2d37"
+
