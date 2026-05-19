@@ -44,6 +44,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase Admin SDK Credentials / Secrets
-NEW/*-adminsdk-*.json
 
