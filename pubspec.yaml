@@ -49,17 +49,18 @@ flutter:
 flutter_launcher_icons:
   android: "ic_launcher"
   ios: false
-  image_path: "AppIcons/playstore.png"
+  image_path: "AppIcons (1)/playstore.png"
   min_sdk_android: 21
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "AppIcons/playstore.png"
+  adaptive_icon_foreground: "AppIcons (1)/playstore.png"
 
 # CẤU HÌNH NATIVE SPLASH SCREEN
 flutter_native_splash:
   color: "#0a2d37"
   background_image: "assets/images/sudoku_bg.png"
-  image: "AppIcons/playstore.png"
+  image: "AppIcons (1)/playstore.png"
   android_12:
-    image: "AppIcons/playstore.png"
+    image: "AppIcons (1)/playstore.png"
     icon_background_color: "#0a2d37"
+
 
