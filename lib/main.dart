@@ -9,7 +9,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // ❌ XÓA DÒNG NÀY: ConfigService().startListening();
+  // XÓA DÒNG NÀY: ConfigService().startListening();
   // Để vào màn hình rồi mới gọi, tránh việc check khi app chưa lên hình.
 
   runApp(const MyApp());

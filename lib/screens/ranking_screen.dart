@@ -42,15 +42,22 @@ class RankingScreen extends StatelessWidget {
           ),
         ),
         body: StreamBuilder<QuerySnapshot>(
-          // --- LOGIC: Query từ collection 'users' để đồng bộ với Auth ---
           stream: FirebaseFirestore.instance
               .collection('users')
-              .where('level', isGreaterThan: 0) // Chỉ lấy user đã chơi
-              .orderBy('level', descending: true) // Ưu tiên Level cao
-              .orderBy('totalTime', descending: false) // Cùng Level thì ai nhanh hơn (thời gian thấp hơn) xếp trên
+              .orderBy('xp', descending: true) // Sort by XP to avoid composite index requirement
               .limit(50)
               .snapshots(),
           builder: (ctx, snap) {
+            if (snap.hasError) {
+              return Center(
+                child: Text(
+                  "Unable to load ranking.\n${snap.error}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator(color: Colors.white));
             }

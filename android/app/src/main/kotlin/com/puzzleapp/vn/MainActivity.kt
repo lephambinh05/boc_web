@@ -1,4 +1,4 @@
-package com.mojistudio.sudoku
+package com.puzzleapp.vn
 
 import io.flutter.embedding.android.FlutterActivity
 

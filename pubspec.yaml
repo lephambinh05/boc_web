@@ -1,4 +1,4 @@
-name: Jun_Sudoku
+name: jun_sudoku
 description: "Jun Sudoku - Trò chơi giải đố thông minh Việt Nam"
 publish_to: "none"
 version: 2.0.1+1
@@ -12,19 +12,19 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Firebase
-  firebase_core: ^3.2.0
-  cloud_firestore: ^5.1.0
-  firebase_auth: ^5.1.2
+  firebase_core: ^4.9.0
+  cloud_firestore: ^6.4.1
+  firebase_auth: ^6.5.1
 
   # WebView
   webview_flutter: ^4.7.0
-  webview_flutter_android: ^3.13.0
+  webview_flutter_android: ^4.10.1
   webview_flutter_wkwebview: ^3.13.0
 
   # Tiện ích
   url_launcher: ^6.3.0
-  geolocator: ^10.1.0
-  geocoding: ^2.1.1
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
 
   # --- THÊM DÒNG NÀY ---
   audioplayers: ^6.0.0
@@ -33,8 +33,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -42,6 +42,7 @@ flutter:
     - assets/images/
     # --- THÊM DÒNG NÀY (Nhớ tạo đúng thư mục) ---
     - assets/sound-effects/
+    - assets/images/puzzles/
 
 # CẤU HÌNH TẠO ICON TỰ ĐỘNG (Giữ nguyên)
 flutter_launcher_icons:

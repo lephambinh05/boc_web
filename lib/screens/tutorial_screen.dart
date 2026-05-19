@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/common_widgets.dart'; // Ensure BeachBackground is here
+import '../widgets/common_widgets.dart';
 
 class TutorialScreen extends StatelessWidget {
   const TutorialScreen({super.key});
@@ -7,7 +7,7 @@ class TutorialScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BeachBackground(
-      showBlur: true, // Blur background for readability
+      showBlur: true,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -36,57 +36,33 @@ class TutorialScreen extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.all(25),
           children: [
-            // 1. OBJECTIVE
             _buildGlassCard(
               title: "OBJECTIVE",
               icon: Icons.flag_rounded,
               iconColor: Colors.orange,
               content: const Text(
-                "Fill the 9×9 grid with digits so that each column, each row, and each of the nine 3×3 subgrids that compose the grid contain all of the digits from 1 to 9 without repetition.",
+                "Arrange the tiles in ascending order (1, 2, 3...) by sliding them into the empty space. The puzzle is solved when all tiles are in their correct numerical positions.",
                 style: TextStyle(fontSize: 15, height: 1.5, color: Colors.black87, fontWeight: FontWeight.w500),
                 textAlign: TextAlign.justify,
               ),
             ),
             const SizedBox(height: 20),
-
-            // 2. RULES
-            _buildGlassCard(
-              title: "KEY RULES",
-              icon: Icons.verified_user_rounded,
-              iconColor: Colors.green,
-              content: Column(
-                children: [
-                  _buildRuleRow(Icons.table_rows_rounded, "Rows", "Every row must contain numbers 1-9, no duplicates."),
-                  const Divider(height: 25),
-                  _buildRuleRow(Icons.view_column_rounded, "Columns", "Every column must contain numbers 1-9, no duplicates."),
-                  const Divider(height: 25),
-                  _buildRuleRow(Icons.grid_3x3_rounded, "3x3 Boxes", "Every 3x3 subgrid (thick border) must contain numbers 1-9."),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // 3. CONTROLS
             _buildGlassCard(
               title: "CONTROLS",
-              icon: Icons.gamepad_rounded,
+              icon: Icons.touch_app_rounded,
               iconColor: Colors.blueAccent,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildControlRow(Icons.touch_app_rounded, "Select Cell", "Tap an empty cell on the grid to select it."),
+                  _buildControlRow(Icons.swipe_rounded, "Slide Tiles", "Tap a tile adjacent to the empty space to move it into that space."),
                   const SizedBox(height: 15),
-                  _buildControlRow(Icons.looks_one_rounded, "Input Number", "Tap numbers 1-9 on the bottom keypad to fill."),
+                  _buildControlRow(Icons.timer_rounded, "Time & Moves", "Try to solve the puzzle in the shortest time and with the fewest moves possible."),
                   const SizedBox(height: 15),
-                  _buildControlRow(Icons.verified_rounded, "CHECK Button", "Verify your current progress. \n🔴 Red = Wrong (fades in 3s).\n🟢 Green = Correct."),
-                  const SizedBox(height: 15),
-                  _buildControlRow(Icons.backspace_rounded, "CLEAR Button", "Remove the number from the selected cell."),
+                  _buildControlRow(Icons.refresh_rounded, "Reset", "Use the RESET button to shuffle the tiles and start a new game."),
                 ],
               ),
             ),
             const SizedBox(height: 30),
-
-            // Bottom Button
             _buildGradientButton("GOT IT, LET'S PLAY!", () => Navigator.pop(context)),
             const SizedBox(height: 30),
           ],
@@ -95,13 +71,11 @@ class TutorialScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET BUILDERS ---
-
-  // Modern Glassmorphism Card
   Widget _buildGlassCard({required String title, required IconData icon, required Color iconColor, required Widget content}) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9), // Milky glass
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 8))],
@@ -132,41 +106,17 @@ class TutorialScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRuleRow(IconData icon, String title, String desc) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.grey.shade600, size: 26),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black87)),
-              const SizedBox(height: 4),
-              Text(desc, style: const TextStyle(color: Colors.black54, height: 1.3, fontWeight: FontWeight.w500)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildControlRow(IconData icon, String title, String desc) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: Colors.cyan.shade800, size: 22),
-        ),
+        Icon(icon, color: Colors.cyan.shade800, size: 24),
         const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Colors.cyan.shade900)),
+              Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.cyan.shade900)),
               const SizedBox(height: 4),
               Text(desc, style: const TextStyle(color: Colors.black87, height: 1.4, fontSize: 14)),
             ],

@@ -49,7 +49,7 @@ class AboutScreen extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // --- 1. LOGO & VERSION ---
-                      const SudokuLogo(size: 80),
+                      const GameLogo(size: 80),
                       const SizedBox(height: 15),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

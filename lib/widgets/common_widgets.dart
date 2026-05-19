@@ -22,8 +22,8 @@ class BeachBackground extends StatelessWidget {
         if (showBlur)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Tăng độ mờ chút cho mịn
-              child: Container(color: Colors.black.withOpacity(0.2)), // Tăng độ tối nhẹ để chữ trắng nổi hơn
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(color: Colors.black.withOpacity(0.3)),
             ),
           ),
         // Nội dung chính
@@ -33,12 +33,12 @@ class BeachBackground extends StatelessWidget {
   }
 }
 
-// --- 2. SUDOKU LOGO (MODERN GLASS STYLE) ---
-class SudokuLogo extends StatelessWidget {
+// --- 2. GAME LOGO (MODERN GLASS STYLE) ---
+class GameLogo extends StatelessWidget {
   final double size;
   final bool showText; // Tùy chọn hiển thị chữ SUDOKU hay không
 
-  const SudokuLogo({super.key, this.size = 100, this.showText = true});
+  const GameLogo({super.key, this.size = 100, this.showText = true});
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +63,7 @@ class SudokuLogo extends StatelessWidget {
           ),
           child: Center(
               child: Icon(
-                  Icons.apps_rounded, // Icon bo tròn hiện đại hơn grid_on_sharp
+                  Icons.extension_rounded, // Biểu tượng mảnh ghép puzzle chuyên nghiệp hơn
                   size: size * 0.6,
                   color: Colors.white
               )
@@ -74,7 +74,7 @@ class SudokuLogo extends StatelessWidget {
         if (showText) ...[
           SizedBox(height: size * 0.15),
           Text(
-              'SUDOKU',
+              'PUZZLE',
               style: TextStyle(
                   fontSize: size * 0.35, // Font size tỉ lệ theo Logo
                   fontWeight: FontWeight.w900,
@@ -131,7 +131,7 @@ class LoadingScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Logo hiện đại
-              const SudokuLogo(size: 80, showText: true),
+              const GameLogo(size: 80, showText: true),
 
               const SizedBox(height: 50),
 

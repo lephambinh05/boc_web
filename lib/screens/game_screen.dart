@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'dart:math';
 
-import '../logic/sudoku_logic.dart';
+import '../logic/puzzle_logic.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/custom_dialog.dart';
 import '../services/sound_manager.dart';
 
-class SudokuScreen extends StatefulWidget {
+class PuzzleScreen extends StatefulWidget {
   final String playerName;
   final String userUid;
   final User? user;
   final Map<String, dynamic>? userData;
 
-  const SudokuScreen({
+  const PuzzleScreen({
     super.key,
     required this.playerName,
     required this.userUid,
@@ -23,31 +24,33 @@ class SudokuScreen extends StatefulWidget {
   });
 
   @override
-  State<SudokuScreen> createState() => _SudokuScreenState();
+  State<PuzzleScreen> createState() => _PuzzleScreenState();
 }
 
-class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver {
-  // Game State
-  late List<List<int>> _board;
-  late List<List<int>> _solution;
-  late List<List<bool>> _initialBoard;
-  late List<List<bool>> _errorBoard;
-  late List<List<bool>> _correctBoard;
-
-  int? _selectedRow;
-  int? _selectedCol;
-
+class _PuzzleScreenState extends State<PuzzleScreen> with WidgetsBindingObserver {
+  late PuzzleLogic _logic;
   Timer? _timer;
   int _secondsElapsed = 0;
   bool _isPlayingMusic = true;
+  int _moves = 0;
+  int _currentSize = 3;
+  String _currentImagePath = "assets/images/puzzles/puzzle_1.png";
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Sync local state with SoundManager
     _isPlayingMusic = SoundManager().isMusicPlaying;
+    _logic = PuzzleLogic(size: _currentSize);
+    _pickRandomImage();
     _startNewGame();
+  }
+
+  void _pickRandomImage() {
+    int randomId = Random().nextInt(10) + 1;
+    setState(() {
+      _currentImagePath = "assets/images/puzzles/puzzle_$randomId.png";
+    });
   }
 
   void _toggleMusic() {
@@ -73,24 +76,23 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     super.dispose();
   }
 
-  // --- LOGIC GAME ---
+  void _changeSize(int newSize) {
+    if (_currentSize == newSize) return;
+    SoundManager().playClickSound();
+    setState(() {
+      _currentSize = newSize;
+      _logic = PuzzleLogic(size: _currentSize);
+      _pickRandomImage();
+      _startNewGame();
+    });
+  }
+
   void _startNewGame() {
-    final generator = SudokuGenerator();
-    final generatedPuzzle = generator.generate(difficulty: 40);
-
-    _solution = generatedPuzzle.solution;
-    final puzzle = generatedPuzzle.puzzle;
-
-    _board = puzzle.map((row) => List<int>.from(row)).toList();
-    _initialBoard = puzzle.map((row) => row.map((cell) => cell != 0).toList()).toList();
-
-    _errorBoard = List.generate(9, (_) => List.generate(9, (_) => false));
-    _correctBoard = List.generate(9, (_) => List.generate(9, (_) => false));
-
-    _secondsElapsed = 0;
-    _selectedRow = null;
-    _selectedCol = null;
-
+    setState(() {
+      _logic.generate();
+      _secondsElapsed = 0;
+      _moves = 0;
+    });
     _startTimer();
   }
 
@@ -105,124 +107,18 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     });
   }
 
-  void _onCellTapped(int row, int col) {
-    SoundManager().playClickSound();
-    setState(() {
-      _selectedRow = row;
-      _selectedCol = col;
-    });
-  }
-
-  void _onNumberTapped(int number) {
-    if (_selectedRow == null || _selectedCol == null) return;
-    if (_initialBoard[_selectedRow!][_selectedCol!]) return;
-
-    SoundManager().playClickSound();
-
-    setState(() {
-      _board[_selectedRow!][_selectedCol!] = number;
-      _errorBoard[_selectedRow!][_selectedCol!] = false;
-      _updateErrors();
-    });
-
-    _checkForWin();
-  }
-
-  void _onClearTapped() {
-    if (_selectedRow == null || _selectedCol == null) return;
-    if (_initialBoard[_selectedRow!][_selectedCol!]) return;
-
-    SoundManager().playClickSound();
-    setState(() {
-      _board[_selectedRow!][_selectedCol!] = 0;
-      _errorBoard[_selectedRow!][_selectedCol!] = false;
-      _updateErrors();
-    });
-  }
-
-  void _updateErrors() {
-    for(int r=0; r<9; r++) {
-      for(int c=0; c<9; c++) {
-        _errorBoard[r][c] = false;
-      }
+  void _onTileTapped(int index) {
+    if (_logic.moveTile(index)) {
+      SoundManager().playClickSound();
+      setState(() {
+        _moves++;
+      });
+      _checkForWin();
     }
-
-    for (int r = 0; r < 9; r++) {
-      for (int c = 0; c < 9; c++) {
-        final val = _board[r][c];
-        if (val == 0) continue;
-
-        for (int i = 0; i < 9; i++) {
-          if (i != c && _board[r][i] == val) {
-            _errorBoard[r][i] = true;
-            _errorBoard[r][c] = true;
-          }
-        }
-        for (int i = 0; i < 9; i++) {
-          if (i != r && _board[i][c] == val) {
-            _errorBoard[i][c] = true;
-            _errorBoard[r][c] = true;
-          }
-        }
-        int startRow = r - r % 3;
-        int startCol = c - c % 3;
-        for (int i = 0; i < 3; i++) {
-          for (int j = 0; j < 3; j++) {
-            int curR = startRow + i;
-            int curC = startCol + j;
-            if ((curR != r || curC != c) && _board[curR][curC] == val) {
-              _errorBoard[curR][curC] = true;
-              _errorBoard[r][c] = true;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  void _onValidateTapped() {
-    SoundManager().playClickSound();
-    setState(() {
-      _updateErrors();
-      for(int r=0; r<9; r++){
-        for(int c=0; c<9; c++){
-          if(!_initialBoard[r][c] && _board[r][c] != 0) {
-            if(_board[r][c] == _solution[r][c]) {
-              _correctBoard[r][c] = true;
-            } else {
-              _errorBoard[r][c] = true;
-            }
-          }
-        }
-      }
-    });
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if(mounted) {
-        setState(() {
-          _correctBoard = List.generate(9, (_) => List.generate(9, (_) => false));
-        });
-      }
-    });
   }
 
   void _checkForWin() {
-    bool isFull = true;
-    bool isCorrect = true;
-
-    for(int r=0; r<9; r++){
-      for(int c=0; c<9; c++){
-        if(_board[r][c] == 0) {
-          isFull = false;
-          break;
-        }
-        if(_board[r][c] != _solution[r][c]) {
-          isCorrect = false;
-        }
-      }
-    }
-
-    if (isFull && isCorrect) {
+    if (_logic.isSolved()) {
       _timer?.cancel();
       _saveScore(true);
 
@@ -230,16 +126,15 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         context: context,
         barrierDismissible: false,
         builder: (context) => CustomDialog(
-          title: 'WINNER!',
-          content: 'CONGRATULATIONS, ${widget.playerName}!\nYou solved the puzzle in ${_formatTime(_secondsElapsed)}.',
-          buttonText: 'CONTINUE',
-          icon: Icons.emoji_events_rounded,
-          iconColor: Colors.amber,
+          title: 'WELL DONE!',
+          content: 'You completed the summer puzzle in ${_formatTime(_secondsElapsed)}!',
+          buttonText: 'NEXT PUZZLE',
+          icon: Icons.sunny,
+          iconColor: Colors.orangeAccent,
           onPressed: () {
             Navigator.of(context).pop();
-            setState(() {
-              _startNewGame();
-            });
+            _pickRandomImage();
+            _startNewGame();
           },
         ),
       );
@@ -247,31 +142,26 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
   }
 
   Future<void> _saveScore(bool win) async {
-    if(widget.userUid.isEmpty) return;
-
+    if (widget.userUid.isEmpty) return;
     final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userUid);
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final snapshot = await transaction.get(userRef);
-
         if (!snapshot.exists) return;
 
         final data = snapshot.data() as Map<String, dynamic>;
         int currentXp = data['xp'] ?? 0;
-        int currentRp = data['rp'] ?? 0;
-        int currentStreak = data['winStreak'] ?? 0;
+        int bonusMultiplier = (_currentSize - 2);
+        int earnedXp = win ? (150 * bonusMultiplier) : 20;
 
         transaction.update(userRef, {
-          'xp': currentXp + (win ? 100 : 10),
-          'rp': currentRp + (win ? 20 : 5),
-          'winStreak': win ? currentStreak + 1 : 0,
+          'xp': currentXp + earnedXp,
           'lastUpdate': FieldValue.serverTimestamp(),
+          'level': (currentXp + earnedXp) ~/ 500 + 1,
         });
       });
-    } catch(e) {
-      debugPrint("Save score error: $e");
-    }
+    } catch (_) {}
   }
 
   String _formatTime(int seconds) {
@@ -285,104 +175,65 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     return BeachBackground(
       showBlur: true,
       child: Scaffold(
-        // [QUAN TRỌNG 1] Nền trong suốt
         backgroundColor: Colors.transparent,
-        // [QUAN TRỌNG 2] Cho phép hình nền tràn lên Header
         extendBodyBehindAppBar: true,
-
         appBar: AppBar(
-          // [QUAN TRỌNG 3] Header trong suốt hoàn toàn
           backgroundColor: Colors.transparent,
           elevation: 0,
-          centerTitle: true,
-          iconTheme: const IconThemeData(color: Colors.white), // Nút Back màu trắng
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-            onPressed: () {
-              SoundManager().playClickSound();
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
           ),
-          title: Column(
-            children: [
-              Text(widget.playerName, style: const TextStyle(fontSize: 14, color: Colors.white70)),
-              Text(_formatTime(_secondsElapsed), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-            ],
-          ),
+          title: Text(_formatTime(_secondsElapsed), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
+          centerTitle: true,
           actions: [
-            IconButton(
-              icon: Icon(_isPlayingMusic ? Icons.music_note : Icons.music_off, color: Colors.white),
-              onPressed: _toggleMusic,
-            ),
+            IconButton(icon: Icon(_isPlayingMusic ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: Colors.white), onPressed: _toggleMusic),
           ],
         ),
-
-        // [QUAN TRỌNG 4] Dùng SafeArea để tránh bị tai thỏ che mất bàn cờ
         body: SafeArea(
           child: Column(
             children: [
+              const SizedBox(height: 10),
+              _buildModernStats(),
+              const SizedBox(height: 15),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildLevelSelector(),
+                    _buildReferenceImageButton(),
+                  ],
+                ),
+              ),
               Expanded(
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0),
+                    padding: const EdgeInsets.all(20.0),
                     child: AspectRatio(
                       aspectRatio: 1.0,
                       child: Container(
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))],
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
                         ),
                         child: GridView.builder(
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 9),
-                          itemCount: 81,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: _currentSize,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                          ),
+                          itemCount: _logic.tiles.length,
                           itemBuilder: (context, index) {
-                            int row = index ~/ 9;
-                            int col = index % 9;
-
-                            bool isInitial = _initialBoard[row][col];
-                            bool isSelected = (row == _selectedRow && col == _selectedCol);
-                            bool isError = _errorBoard[row][col];
-                            bool isCorrect = _correctBoard[row][col];
-
-                            Color? bgColor = Colors.transparent;
-                            if (isError) bgColor = Colors.red.withOpacity(0.3);
-                            else if (isCorrect) bgColor = Colors.green.withOpacity(0.3);
-                            else if (isSelected) bgColor = Colors.cyan.withOpacity(0.3);
-                            else if (_selectedRow != null && _selectedCol != null &&
-                                (row == _selectedRow || col == _selectedCol)) {
-                              bgColor = Colors.cyan.withOpacity(0.1);
-                            }
-
-                            double topW = (row % 3 == 0) ? 2.0 : 0.5;
-                            double leftW = (col % 3 == 0) ? 2.0 : 0.5;
-                            double rightW = (col == 8) ? 2.0 : 0.5;
-                            double bottomW = (row == 8) ? 2.0 : 0.5;
+                            int value = _logic.tiles[index];
+                            if (value == 0) return Container(color: Colors.black26);
 
                             return GestureDetector(
-                              onTap: () => _onCellTapped(row, col),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                    color: bgColor,
-                                    border: Border(
-                                      top: BorderSide(color: Colors.black87, width: topW),
-                                      left: BorderSide(color: Colors.black87, width: leftW),
-                                      right: BorderSide(color: Colors.black87, width: rightW),
-                                      bottom: BorderSide(color: Colors.black87, width: bottomW),
-                                    )
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _board[row][col] == 0 ? '' : '${_board[row][col]}',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: isInitial ? FontWeight.w900 : FontWeight.w500,
-                                      color: isInitial ? Colors.black87 : Colors.blue.shade900,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              onTap: () => _onTileTapped(index),
+                              child: _buildTile(value),
                             );
                           },
                         ),
@@ -391,73 +242,196 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.only(bottom: 30, left: 10, right: 10, top: 15),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.85),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(9, (index) {
-                        int num = index + 1;
-                        return GestureDetector(
-                          onTap: () => _onNumberTapped(num),
-                          child: Container(
-                            width: 36, height: 48,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.cyan.shade700, width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 3, offset: const Offset(0, 3))
-                                ]
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$num',
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyan.shade800),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _onClearTapped,
-                          icon: const Icon(Icons.backspace_outlined, size: 22),
-                          label: const Text("DELETE", style: TextStyle(fontSize: 16)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade400,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                            elevation: 4,
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _onValidateTapped,
-                          icon: const Icon(Icons.check_circle_outline, size: 22),
-                          label: const Text("CHECK", style: TextStyle(fontSize: 16)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                            elevation: 4,
-                          ),
-                        ),
-                      ],
-                    )
-                  ],
-                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 30),
+                child: _buildResetButton(),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTile(int value) {
+    int originalRow = (value - 1) ~/ _currentSize;
+    int originalCol = (value - 1) % _currentSize;
+
+    const double baseSize = 100.0;
+    final double fullSize = _currentSize * baseSize;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(7),
+        child: Stack(
+          children: [
+            // Ảnh cắt
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: baseSize,
+                  height: baseSize,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: -originalCol * baseSize,
+                        top: -originalRow * baseSize,
+                        width: fullSize,
+                        height: fullSize,
+                        child: Image.asset(
+                          _currentImagePath,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Khung làm mờ nhỏ gọn để hiện số
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- HÀM TỰ CẮT ẢNH DÙNG DECORATION IMAGE CẢI TIẾN ---
+  // Lưu ý: DecorationImage.fit: BoxFit.cover kết hợp alignment sẽ tự động crop phần ảnh tương ứng nếu ta set đúng.
+  // Tuy nhiên để chính xác 100%, ta cần bao bọc trong một Widget có kích thước cố định.
+
+  Widget _buildModernStats() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(30)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.touch_app_rounded, color: Colors.orangeAccent, size: 20),
+          const SizedBox(width: 8),
+          Text("MOVES: $_moves", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLevelSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(30)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _levelItem(3, "3x3"),
+          _levelItem(4, "4x4"),
+          _levelItem(5, "5x5"),
+        ],
+      ),
+    );
+  }
+
+  Widget _levelItem(int size, String label) {
+    bool isSel = _currentSize == size;
+    return GestureDetector(
+      onTap: () => _changeSize(size),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSel ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(color: isSel ? Colors.cyan.shade900 : Colors.white70, fontWeight: FontWeight.w900, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResetButton() {
+    return Container(
+      width: 200,
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+      ),
+      child: ElevatedButton(
+        onPressed: () {
+          _pickRandomImage();
+          _startNewGame();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange.shade700,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          elevation: 0,
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.refresh_rounded),
+            SizedBox(width: 10),
+            Text("NEW IMAGE", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReferenceImageButton() {
+    return GestureDetector(
+      onTap: () {
+        SoundManager().playClickSound();
+        showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(_currentImagePath),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 45,
+        height: 45,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.8), width: 2),
+          image: DecorationImage(
+            image: AssetImage(_currentImagePath),
+            fit: BoxFit.cover,
+          ),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
+        ),
+        child: const Center(
+          child: Icon(Icons.search_rounded, color: Colors.white70, size: 24, shadows: [Shadow(color: Colors.black54, blurRadius: 4)]),
         ),
       ),
     );
