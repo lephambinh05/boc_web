@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+from firebase_admin import auth
 import os
 import sys
 
@@ -41,22 +42,42 @@ else:
             webdata_ref.set(webdata_data)
             print("SUCCESS: Updated collection 'webdata' (doc: webdata)")
 
-            # --- Tạo thử 1 User mẫu ---
-            user_ref = db.collection('users').document('sample_admin')
-            user_data = {
-                'displayName': 'Admin Sudoku',
-                'email': 'admin@sudoku.com',
-                'xp': 100,
-                'level': 1,
-                'totalTime': 0,
-                'winStreak': 0,
-                'createdAt': firestore.SERVER_TIMESTAMP
-            }
-            user_ref.set(user_data)
-            print("SUCCESS: Created sample user 'sample_admin'")
+            # --- Đăng ký và cấu hình User lephambinh05@gmail.com ---
+            email = 'lephambinh05@gmail.com'
+            password = 'Binh2005@'
+            display_name = 'Lê Phạm Bình'
+            uid = None
+            try:
+                user = auth.create_user(
+                    email=email,
+                    password=password,
+                    display_name=display_name,
+                )
+                uid = user.uid
+                print(f"SUCCESS: Created Auth user {email} (UID: {uid})")
+            except auth.EmailAlreadyExistsError:
+                user = auth.get_user_by_email(email)
+                uid = user.uid
+                auth.update_user(uid, password=password, display_name=display_name)
+                print(f"SUCCESS: Updated existing Auth user {email} (UID: {uid})")
+
+            if uid:
+                user_ref = db.collection('users').document(uid)
+                user_data = {
+                    'displayName': display_name,
+                    'email': email,
+                    'xp': 150,
+                    'level': 1,
+                    'totalTime': 0,
+                    'winStreak': 0,
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                }
+                user_ref.set(user_data, merge=True)
+                print(f"SUCCESS: Seeded Firestore document for UID {uid}")
 
             print("\nDONE: Firebase seeding completed successfully.")
 
         seed_data()
     except Exception as e:
         print(f"CRITICAL ERROR: {e}")
+
